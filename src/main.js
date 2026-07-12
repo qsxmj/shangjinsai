@@ -283,6 +283,7 @@ function bind() {
     }, { passive: true })
     surface.addEventListener('touchmove', e => {
       if (e.touches.length !== 2 || !pinchStart) return
+      e.preventDefault()
       const distance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
       if (pinchStart - distance > 85) {
         if (state.view === 'day') state.view = 'week'
@@ -295,8 +296,13 @@ function bind() {
         else return
         pinchStart = 0; render()
       }
-    }, { passive: true })
+    }, { passive: false })
   }
 }
+
+// Safari exposes a separate gesture event path for native pinch zoom.
+// Cancelling it keeps the two-finger gesture reserved for app view changes.
+document.addEventListener('gesturestart', event => event.preventDefault(), { passive: false })
+document.addEventListener('gesturechange', event => event.preventDefault(), { passive: false })
 
 render()
