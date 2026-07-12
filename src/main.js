@@ -139,14 +139,41 @@ function titleFor(date) {
 
 function render() {
   const root = document.querySelector('#app')
+  const pageMotion = state.flip
+  state.flip = ''
   root.innerHTML = `<div class="app-shell ${state.view === 'day' ? 'is-day' : ''}">
     ${renderHeader()}
-    <main class="main-content ${state.flip}">${renderView()}</main>
+    <main class="main-content ${pageMotion}">${renderView()}</main>
     ${state.view === 'day' ? renderFooter() : ''}
     ${state.toolbar ? renderToolbar() : ''}
     <div id="toast" class="toast" aria-live="polite"></div>
   </div>`
   bind()
+}
+
+function turnToDate(target, direction) {
+  const nextDate = clampDate(target)
+  if (iso(nextDate) === iso(state.date)) return
+  const currentPage = document.querySelector('.main-content')
+  if (currentPage && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const rect = currentPage.getBoundingClientRect()
+    const ghost = currentPage.cloneNode(true)
+    ghost.className = `page-turn-ghost turn-${direction}`
+    ghost.setAttribute('aria-hidden', 'true')
+    Object.assign(ghost.style, {
+      left: `${rect.left}px`,
+      top: `${rect.top}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`
+    })
+    document.body.appendChild(ghost)
+    requestAnimationFrame(() => ghost.classList.add('is-turning'))
+    setTimeout(() => ghost.remove(), 720)
+  }
+  state.date = nextDate
+  state.view = 'day'
+  state.flip = `page-enter-${direction}`
+  render()
 }
 
 function renderHeader() {
@@ -289,21 +316,7 @@ async function copyText(text) {
   }
 }
 
-function spin() {
-  const wheel = document.querySelector('.wheel')
-  const actionButton = document.querySelector('.spin-modal .primary-btn')
-  if (!wheel) return
-  wheel.classList.add('is-spinning')
-  if (actionButton) actionButton.disabled = true
-  setTimeout(resolveSpin, 1250)
-}
-
-function resolveSpin() {
-  const e = entryFor(state.date); const available = !e.spin.used || e.spin.extra > 0
-  if (!available) return toast('今天的转盘已经转过啦，明天再来。')
-  if (e.spin.used) e.spin.extra--
-  e.spin.used = true
-  const outcomes = ['再接再厉', ...Array.from({ length: 8 }, (_, i) => `免下一个工作日任务 ${i + 1}`), '免周六努力', '免周一全天', '免周二全天', '免周三全天', '免周四全天', '免周五全天', '免下一周工作日']
+function spinWeights() {
   const weights = [90.999,1,1,1,1,1,1,1,1,.5,.1,.1,.1,.1,.1,.001]
   const nextWorkday = nextDateMatching(d => d.getDay() >= 1 && d.getDay() <= 5)
   if (nextWorkday && !entryFor(nextWorkday).items[5].text.trim() && confirm('下一个工作日的第 6 项为空。确认留空并将这 1% 平分给其余七项吗？\n取消则保留第 6 项的 1% 概率。')) {
@@ -311,6 +324,27 @@ function resolveSpin() {
     const share = 1 / 7
     ;[1, 2, 3, 4, 5, 7, 8].forEach(i => { weights[i] += share })
   }
+  return weights
+}
+
+function spin() {
+  const entry = entryFor(state.date)
+  if (entry.spin.used && entry.spin.extra <= 0) return toast('今天的转盘已经转过啦，明天再来。')
+  const wheel = document.querySelector('.wheel')
+  const actionButton = document.querySelector('.spin-modal .primary-btn')
+  if (!wheel) return
+  const weights = spinWeights()
+  wheel.classList.add('is-spinning')
+  if (actionButton) actionButton.disabled = true
+  setTimeout(() => resolveSpin(weights), 1250)
+}
+
+function resolveSpin(weights) {
+  const e = entryFor(state.date); const available = !e.spin.used || e.spin.extra > 0
+  if (!available) return toast('今天的转盘已经转过啦，明天再来。')
+  if (e.spin.used) e.spin.extra--
+  e.spin.used = true
+  const outcomes = ['再接再厉', ...Array.from({ length: 8 }, (_, i) => `免下一个工作日任务 ${i + 1}`), '免周六努力', '免周一全天', '免周二全天', '免周三全天', '免周四全天', '免周五全天', '免下一周工作日']
   let r = Math.random() * weights.reduce((sum, weight) => sum + weight, 0); let result = outcomes[0]
   for (let i = 0; i < weights.length; i++) { r -= weights[i]; if (r <= 0) { result = outcomes[i]; break } }
   if (result !== '再接再厉') applyPrize(result)
@@ -335,9 +369,6 @@ function applyPrize(result) {
     const target = nextDateMatching(d => d.getDay() >= 1 && d.getDay() <= 5)
     if (!target) return
     const entry = entryFor(target)
-    if (index === 5 && !entry.items[5].text && confirm('下一个工作日的第 6 项仍为空。确认保留空白，并将免单机会随机平分给其余七项吗？')) {
-      const choices = [0,1,2,3,4,6,7]; index = choices[Math.floor(Math.random() * choices.length)]; result = `免下一个工作日任务 ${index + 1}`
-    } else if (index === 5 && !entry.items[5].text) return
     entry.items[index].waived = true; entry.items[index].done = false; recordPrize('单项免单', result, [target]); return
   }
   if (result === '免周六努力') { const target = nextDateMatching(d => d.getDay() === 6); if (!target) return; const entry = entryFor(target); entry.waivedSaturday = true; entry.saturdayItems.forEach(x => { x.waived = true; x.done = false }); recordPrize('周六免单', result, [target]); return }
@@ -374,11 +405,9 @@ function showDatePicker() {
     event.preventDefault()
     const selected = parse(new FormData(event.currentTarget).get('date'))
     if (!within(selected)) return
-    state.flip = selected < state.date ? 'flip-prev' : 'flip-next'
-    state.date = selected
-    state.view = 'day'
+    const direction = selected < state.date ? 'prev' : 'next'
     closeModal()
-    render()
+    turnToDate(selected, direction)
   })
 }
 
@@ -386,8 +415,8 @@ function bind() {
   document.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', () => {
     const action = btn.dataset.action
     if (action === 'toolbar') state.toolbar = !state.toolbar
-    else if (action === 'prev') { state.date = addDays(state.date, -1); state.flip = 'flip-prev'; }
-    else if (action === 'next') { state.date = addDays(state.date, 1); state.flip = 'flip-next'; }
+    else if (action === 'prev') return turnToDate(addDays(state.date, -1), 'prev')
+    else if (action === 'next') return turnToDate(addDays(state.date, 1), 'next')
     else if (action === 'pick-date') return showDatePicker()
     else if (action === 'toggle-task') { const row = btn.closest('.task-row'); const item = entryFor(state.date).items[Number(row.dataset.index)]; if (!item.waived) { if (item.done) { item.done = false; item.flagged = true } else { item.done = true; item.flagged = false } } save() }
     else if (action === 'toggle-saturday') { const row = btn.closest('.saturday-task'); const item = entryFor(state.date).saturdayItems[Number(row.dataset.saturdayIndex)]; if (!item.waived) { if (item.done) { item.done = false; item.flagged = true } else { item.done = true; item.flagged = false } } save() }
@@ -413,7 +442,7 @@ function bind() {
   })
   document.querySelector('[data-journal]')?.addEventListener('input', e => { persistField('journal', e.target.value); const count = document.querySelector('[data-journal-count]'); if (count) count.textContent = `${countChars(e.target.value)} 字` })
   document.querySelector('[data-goal]')?.addEventListener('input', e => persistField('goal', e.target.value))
-  document.querySelectorAll('[data-date]').forEach(el => el.addEventListener('click', () => { const selected = parse(el.dataset.date); if (!within(selected)) return; state.flip = selected < state.date ? 'flip-prev' : 'flip-next'; state.date = selected; state.view = 'day'; render() }))
+  document.querySelectorAll('[data-date]').forEach(el => el.addEventListener('click', () => { const selected = parse(el.dataset.date); if (!within(selected)) return; turnToDate(selected, selected < state.date ? 'prev' : 'next') }))
   document.querySelectorAll('[data-remove-favorite]').forEach(el => el.addEventListener('click', () => { state.data.favorites = state.data.favorites.filter(x => x.time !== Number(el.dataset.removeFavorite)); save(); render() }))
   const surface = document.querySelector('.main-content')
   if (surface) {
@@ -425,7 +454,7 @@ function bind() {
     surface.addEventListener('touchend', e => {
       if (e.changedTouches.length !== 1) return
       const dx = e.changedTouches[0].clientX - startX; const dy = e.changedTouches[0].clientY - startY
-      if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) && state.view === 'day') { state.date = addDays(state.date, dx < 0 ? 1 : -1); state.flip = dx < 0 ? 'flip-next' : 'flip-prev'; render() }
+      if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) && state.view === 'day') turnToDate(addDays(state.date, dx < 0 ? 1 : -1), dx < 0 ? 'next' : 'prev')
     }, { passive: true })
     surface.addEventListener('touchmove', e => {
       if (e.touches.length !== 2 || !pinchStart) return
@@ -461,8 +490,6 @@ setInterval(() => {
   const previousDayKey = activeDayKey
   activeDayKey = currentDayKey
   if (state.view === 'day' && iso(state.date) === previousDayKey && within(new Date())) {
-    state.date = clampDate(new Date())
-    state.flip = 'flip-next'
-    render()
+    turnToDate(new Date(), 'next')
   }
 }, 60000)

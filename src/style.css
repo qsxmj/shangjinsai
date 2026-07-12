@@ -75,3 +75,23 @@
 @keyframes waiverFlow{to{background-position:-260% 0}}
 @media (max-width:800px){.day-heading h1,.overview-head h1,.stats-head h1{font-size:32px}.saturday-page .day-heading h1{font-size:46px}}
 @media (max-width:520px){.topbar{display:grid;grid-template-columns:34px minmax(0,1fr) 34px;gap:6px}.brand-mark{display:none}.top-actions{justify-content:center;gap:4px;min-width:0}.top-actions>.icon-btn{display:none}.date-chip{white-space:nowrap;font-size:12px}.day-heading{grid-template-areas:"eyebrow" "title" "action";grid-template-columns:1fr}.day-heading>.text-btn{justify-self:start}.day-heading h1,.overview-head h1,.stats-head h1{font-size:28px}.saturday-page .day-heading h1{font-size:38px}.task-text,.task-input,.task-composite{font-size:14px}.task-composite{gap:5px}.task-composite .task-input{width:0;min-width:0;flex-basis:0}.task-composite>span{white-space:nowrap}.task-composite.has-suffix{grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;row-gap:2px}.task-composite.has-suffix>span:last-child{grid-column:2;grid-row:2;justify-self:end;font-size:12px}.daily-actions{display:grid;grid-template-columns:1fr}.daily-actions .outline-btn{width:100%;min-width:0}.saturday-task{min-height:74px;grid-template-columns:34px 32px 1fr 22px}.saturday-task .check-btn{width:32px;height:32px;font-size:17px}.saturday-page .daily-actions .outline-btn{font-size:16px;padding:13px 16px}}
+
+/* Novel-reader page turn: navigation animates, ordinary form renders stay still. */
+.main-content{animation:none}
+.page-turn-ghost{position:fixed!important;z-index:7;margin:0!important;background:var(--paper);overflow:hidden;pointer-events:none;transform-style:preserve-3d;backface-visibility:hidden;will-change:transform,filter,opacity;box-shadow:0 0 0 1px rgba(79,114,95,.05)}
+.page-turn-ghost:after{content:"";position:absolute;top:0;bottom:0;width:22%;opacity:0;pointer-events:none}
+.page-turn-ghost.turn-next{transform-origin:left center}
+.page-turn-ghost.turn-next:after{right:0;background:linear-gradient(to left,rgba(28,34,30,.22),rgba(28,34,30,.06) 40%,transparent)}
+.page-turn-ghost.turn-prev{transform-origin:right center}
+.page-turn-ghost.turn-prev:after{left:0;background:linear-gradient(to right,rgba(28,34,30,.22),rgba(28,34,30,.06) 40%,transparent)}
+.page-turn-ghost.turn-next.is-turning{animation:novelTurnNext .7s cubic-bezier(.22,.68,.18,1) forwards}
+.page-turn-ghost.turn-prev.is-turning{animation:novelTurnPrev .7s cubic-bezier(.22,.68,.18,1) forwards}
+.page-turn-ghost.is-turning:after{animation:novelFoldShade .7s ease-in-out forwards}
+.main-content.page-enter-next{animation:novelRevealNext .62s cubic-bezier(.2,.7,.2,1) both}
+.main-content.page-enter-prev{animation:novelRevealPrev .62s cubic-bezier(.2,.7,.2,1) both}
+@keyframes novelTurnNext{0%{transform:perspective(1500px) rotateY(0) translateX(0);filter:brightness(1);opacity:1}45%{filter:brightness(.92);opacity:1}100%{transform:perspective(1500px) rotateY(-84deg) translateX(-9%);filter:brightness(.76);opacity:.08}}
+@keyframes novelTurnPrev{0%{transform:perspective(1500px) rotateY(0) translateX(0);filter:brightness(1);opacity:1}45%{filter:brightness(.92);opacity:1}100%{transform:perspective(1500px) rotateY(84deg) translateX(9%);filter:brightness(.76);opacity:.08}}
+@keyframes novelFoldShade{0%{opacity:0}35%{opacity:1}100%{opacity:.15}}
+@keyframes novelRevealNext{0%{opacity:.45;transform:translateX(24px) scale(.992);filter:brightness(.94)}100%{opacity:1;transform:none;filter:none}}
+@keyframes novelRevealPrev{0%{opacity:.45;transform:translateX(-24px) scale(.992);filter:brightness(.94)}100%{opacity:1;transform:none;filter:none}}
+@media (prefers-reduced-motion:reduce){.page-turn-ghost{display:none}.main-content.page-enter-next,.main-content.page-enter-prev{animation:none}}
