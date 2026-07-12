@@ -199,6 +199,15 @@ function toast(text) { const el = document.querySelector('#toast'); if (!el) ret
 function persistField(target, value) { const e = entryFor(state.date); if (target === 'journal') e.journal = value; if (target === 'goal') e.goal = value; save() }
 
 function spin() {
+  const wheel = document.querySelector('.wheel')
+  const actionButton = document.querySelector('.spin-modal .primary-btn')
+  if (!wheel) return
+  wheel.classList.add('is-spinning')
+  if (actionButton) actionButton.disabled = true
+  setTimeout(resolveSpin, 1250)
+}
+
+function resolveSpin() {
   const e = entryFor(state.date); const available = !e.spin.used || e.spin.extra > 0
   if (!available) return toast('今天的转盘已经转过啦，明天再来。')
   if (e.spin.used) e.spin.extra--
