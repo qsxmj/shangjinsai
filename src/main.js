@@ -133,7 +133,7 @@ function renderDay() {
 
 function renderBlessing(date) {
   const liked = entryFor(date).blessingLiked
-  return `<div class="blessing"><button class="blessing-copy" data-action="copy-blessing" title="点击复制">“${blessing(date)}”</button><button class="heart-btn ${liked ? 'liked' : ''}" data-action="like-blessing" aria-label="收藏赠语">${liked ? '♥' : '♡'}</button></div>`
+  return `<div class="blessing"><button class="blessing-copy" data-action="copy-blessing" data-blessing-date="${iso(date)}" title="点击复制">“${blessing(date)}”</button><button class="heart-btn ${liked ? 'liked' : ''}" data-action="like-blessing" data-blessing-date="${iso(date)}" aria-label="收藏赠语">${liked ? '♥' : '♡'}</button></div>`
 }
 
 function renderTask(item, index, date) {
@@ -198,6 +198,20 @@ function renderFavorites() {
 function escape(value = '') { return String(value).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])) }
 function toast(text) { const el = document.querySelector('#toast'); if (!el) return; el.textContent = text; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 1800) }
 function persistField(target, value) { const e = entryFor(state.date); if (target === 'journal') e.journal = value; if (target === 'goal') e.goal = value; save() }
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch (_) {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    textarea.remove()
+  }
+}
 
 function spin() {
   const wheel = document.querySelector('.wheel')
@@ -266,8 +280,8 @@ function bind() {
     else if (action === 'toggle-task') { const row = btn.closest('.task-row'); const item = entryFor(state.date).items[Number(row.dataset.index)]; if (!item.waived) { if (item.done) { item.done = false; item.flagged = true } else { item.done = true; item.flagged = false } } save() }
     else if (action === 'toggle-saturday') { const row = btn.closest('.saturday-task'); const item = entryFor(state.date).saturdayItems[Number(row.dataset.saturdayIndex)]; if (!item.waived) { if (item.done) { item.done = false; item.flagged = true } else { item.done = true; item.flagged = false } } save() }
     else if (action === 'remove-saturday') { const e = entryFor(state.date); const index = Number(btn.closest('.saturday-task').dataset.saturdayIndex); if (e.saturdayItems.length > 1) e.saturdayItems.splice(index, 1); else e.saturdayItems[0] = { text: '', done: false, waived: false }; save() }
-    else if (action === 'like-blessing') { const e = entryFor(state.date); e.blessingLiked = !e.blessingLiked; state.data.favorites = (state.data.favorites || []).filter(x => x.date !== iso(state.date)); if (e.blessingLiked) state.data.favorites.push({ date: iso(state.date), text: blessing(state.date), time: Date.now() }); save() }
-    else if (action === 'copy-blessing') { navigator.clipboard?.writeText(blessing(state.date)); toast('赠语已复制') }
+    else if (action === 'like-blessing') { const blessingDate = parse(btn.dataset.blessingDate || iso(state.date)); const e = entryFor(blessingDate); e.blessingLiked = !e.blessingLiked; state.data.favorites = (state.data.favorites || []).filter(x => x.date !== iso(blessingDate)); if (e.blessingLiked) state.data.favorites.push({ date: iso(blessingDate), text: blessing(blessingDate), time: Date.now() }); save() }
+    else if (action === 'copy-blessing') { const blessingDate = parse(btn.dataset.blessingDate || iso(state.date)); copyText(blessing(blessingDate)); toast('已复制') }
     else if (action === 'week-stats') state.view = 'weeklyStats'
     else if (action === 'all-stats') state.view = 'allStats'
     else if (action === 'favorites') state.view = 'favorites'
