@@ -241,7 +241,11 @@ function applyPrize(result) {
 
 function showSpin() {
   const e = entryFor(state.date); const used = e.spin.used && e.spin.extra <= 0
-  const modal = document.createElement('div'); modal.className = 'modal-backdrop'; modal.innerHTML = `<div class="spin-modal"><button class="modal-close" data-action="close-modal">×</button><div class="eyebrow">MOMENT OF LUCK</div><h2>摸鱼大转盘</h2><div class="wheel"><div class="wheel-pointer">▼</div><div class="wheel-core">◌</div></div><p>${used ? '今日次数已用完' : e.spin.extra ? `今日有 ${e.spin.extra} 次额外机会` : '每天 0 点刷新，愿好运偏爱认真。'}</p><button class="primary-btn" data-action="spin" ${used ? 'disabled' : ''}>${used ? '明日再来' : '开始转动'}</button></div>`; document.body.appendChild(modal); modal.addEventListener('click', e => { if (e.target === modal) closeModal() })
+  const modal = document.createElement('div'); modal.className = 'modal-backdrop'; modal.innerHTML = `<div class="spin-modal"><button class="modal-close" data-action="close-modal">×</button><div class="eyebrow">MOMENT OF LUCK</div><h2>摸鱼大转盘</h2><div class="wheel"><div class="wheel-pointer">▼</div><div class="wheel-core">◌</div></div><p>${used ? '今日次数已用完' : e.spin.extra ? `今日有 ${e.spin.extra} 次额外机会` : '每天 0 点刷新，愿好运偏爱认真。'}</p><button class="primary-btn" data-action="spin" ${used ? 'disabled' : ''}>${used ? '明日再来' : '开始转动'}</button></div>`
+  document.body.appendChild(modal)
+  modal.querySelector('[data-action="close-modal"]').addEventListener('click', closeModal)
+  modal.querySelector('[data-action="spin"]')?.addEventListener('click', spin)
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal() })
 }
 function closeModal() { document.querySelector('.modal-backdrop')?.remove() }
 
