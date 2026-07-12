@@ -66,6 +66,7 @@ function entryFor(date) {
   }
   const entry = state.data.entries[key]
   if (!entry.spin) entry.spin = { used: false, extra: 0 }
+  if (!entry.spin.history) entry.spin.history = []
   if (!entry.saturdayItems) entry.saturdayItems = entry.goal ? entry.goal.split('\n').map(text => ({ text: text.replace(/^\s*\d+[.、]\s*/, ''), done: false, waived: false })) : [{ text: '', done: false, waived: false }]
   return entry
 }
@@ -126,7 +127,7 @@ function renderDay() {
   const date = state.date
   const entry = entryFor(date)
   if (date.getDay() === 0) return renderWeeklyStats(weekStart(date))
-  if (date.getDay() === 6) return `<section class="day-page saturday-page"><div class="blessing-row">${renderBlessing(date)}</div><div class="day-heading"><span class="eyebrow">${dateLabel(date)} · 周六</span><h1>今日总目标</h1><button class="text-btn" data-action="week-stats">本周统计 ↗</button></div>${entry.waivedSaturday ? '<div class="waiver-banner">✦ 今日已由转盘免单，安心休息</div>' : ''}<div class="goal-sheet"><div class="saturday-list">${entry.saturdayItems.map((item, i) => renderSaturdayTask(item, i)).join('')}</div><div class="goal-rule"></div><div class="sheet-hint">回车添加下一项 · 每一次落笔，都是向前一步</div></div><div class="saturday-actions"><button class="outline-btn" data-action="spin-open">◌ 今日转盘</button><button class="outline-btn" data-action="complete-paper">✦ 试卷完成 +1 次抽奖</button></div></section>`
+  if (date.getDay() === 6) return `<section class="day-page saturday-page"><div class="blessing-row">${renderBlessing(date)}</div><div class="day-heading"><span class="eyebrow">${dateLabel(date)} · 周六</span><h1>今日总目标</h1><button class="text-btn" data-action="week-stats">本周统计 ↗</button></div>${entry.waivedSaturday ? '<div class="waiver-banner">✦ 今日已由转盘免单，安心休息</div>' : ''}<div class="goal-sheet"><div class="saturday-list">${entry.saturdayItems.map((item, i) => renderSaturdayTask(item, i)).join('')}</div><div class="goal-rule"></div><div class="sheet-hint">每一次落笔，都是向前一步</div></div><div class="saturday-actions"><button class="outline-btn" data-action="spin-open">◌ 今日转盘</button><button class="outline-btn" data-action="complete-paper">✦ 试卷完成 +1 次抽奖</button></div></section>`
   return `<section class="day-page"><div class="blessing-row">${renderBlessing(date)}</div><div class="day-heading"><span class="eyebrow">${dateLabel(date)} · 周${cnDay(date)}</span><h1>${titleFor(date)}</h1><button class="text-btn" data-action="week-stats">本周统计 ↗</button></div><div class="task-list">${entry.items.map((item, i) => renderTask(item, i, date)).join('')}</div><section class="journal"><div class="section-label"><span>日结 / 日记</span><span class="line"></span><span class="muted">${entry.journal.length} 字</span></div><textarea data-journal placeholder="把今天留在这里……">${escape(entry.journal)}</textarea></section></section>`
 }
 
@@ -146,10 +147,10 @@ function renderSaturdayTask(item, index) {
   return `<div class="task-row saturday-task ${status}" data-saturday-index="${index}"><button class="check-btn" data-action="toggle-saturday" aria-label="切换完成状态">${item.done ? '✓' : item.waived ? '✦' : item.flagged ? '!' : '○'}</button><span class="task-no">${index + 1}.</span><input class="task-input" data-saturday-input value="${escape(item.text)}" placeholder="写下目标" /><button class="remove-task" data-action="remove-saturday" aria-label="删除本项">×</button></div>`
 }
 
-function renderFooter() { return `<footer class="page-footer"><span>2026.07.13 — 08.29</span><span>纯手写企划 · 7月8日晚</span><span>${state.view === 'day' ? '左右滑动翻页 · 捏合查看' : ''}</span></footer>` }
+function renderFooter() { return `<footer class="page-footer"><span>2026.07.13 — 08.29</span></footer>` }
 
 function renderToolbar() {
-  return `<aside class="toolbar"><div class="toolbar-head"><span>工具栏</span><button class="icon-btn" data-action="toolbar">×</button></div><button data-action="day-view">▣ <span>日视图</span></button><button data-action="week-view">▤ <span>周视图</span></button><button data-action="month-view">▦ <span>月视图</span></button><button data-action="week-stats">◒ <span>本周统计</span></button><button data-action="all-stats">◌ <span>总统计</span></button><button data-action="favorites">♡ <span>赠语收藏</span></button><div class="toolbar-note">本地自动保存<br/>最后保存：${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</div></aside>`
+  return `<aside class="toolbar"><div class="toolbar-head"><span>工具栏</span><button class="icon-btn" data-action="toolbar">×</button></div><button data-action="day-view">▣ <span>日视图</span></button><button data-action="week-view">▤ <span>周视图</span></button><button data-action="month-view">▦ <span>月视图</span></button><button data-action="week-stats">◒ <span>本周统计</span></button><button data-action="all-stats">◌ <span>总统计</span></button><button data-action="favorites">♡ <span>赠语收藏</span></button><div class="toolbar-note">已保存 · ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</div></aside>`
 }
 
 function renderWeek() {
@@ -215,7 +216,11 @@ function resolveSpin() {
   const outcomes = ['再接再厉', ...Array.from({ length: 8 }, (_, i) => `免下一个工作日任务 ${i + 1}`), '免周六努力', '免周一全天', '免周二全天', '免周三全天', '免周四全天', '免周五全天', '免下一周工作日']
   const weights = [90.999,1,1,1,1,1,1,1,1,.5,.1,.1,.1,.1,.1,.001]; let r = Math.random() * 100; let result = outcomes[0]; for (let i=0;i<weights.length;i++){ r -= weights[i]; if (r <= 0) { result = outcomes[i]; break } }
   if (result !== '再接再厉') applyPrize(result)
-  save(); closeModal(); render(); toast(result === '再接再厉' ? '这次没有中奖，继续积攒好运。' : `恭喜：${result}`)
+  e.spin.history.push({ result, time: Date.now() })
+  save()
+  closeModal()
+  render()
+  showSpin()
 }
 
 function nextDateMatching(test) { let d = new Date(state.date); do { d.setDate(d.getDate() + 1) } while (d <= END && !test(d)); return d <= END ? d : null }
@@ -240,10 +245,12 @@ function applyPrize(result) {
 }
 
 function showSpin() {
-  const e = entryFor(state.date); const used = e.spin.used && e.spin.extra <= 0
-  const modal = document.createElement('div'); modal.className = 'modal-backdrop'; modal.innerHTML = `<div class="spin-modal"><button class="modal-close" data-action="close-modal">×</button><div class="eyebrow">MOMENT OF LUCK</div><h2>摸鱼大转盘</h2><div class="wheel"><div class="wheel-pointer">▼</div><div class="wheel-core">◌</div></div><p>${used ? '今日次数已用完' : e.spin.extra ? `今日有 ${e.spin.extra} 次额外机会` : '每天 0 点刷新，愿好运偏爱认真。'}</p><button class="primary-btn" data-action="spin" ${used ? 'disabled' : ''}>${used ? '明日再来' : '开始转动'}</button></div>`
+  const e = entryFor(state.date); const used = e.spin.used && e.spin.extra <= 0; const history = e.spin.history || []; const latest = history.at(-1); const legacyResult = used && !latest
+  const resultCard = latest ? `<div class="spin-result"><span>今日第 ${history.length} 次</span><strong>${escape(latest.result)}</strong><time>${new Date(latest.time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</time></div>` : legacyResult ? `<div class="spin-result legacy"><span>今日结果</span><strong>旧版本未保存</strong></div>` : ''
+  const canSpin = !used
+  const modal = document.createElement('div'); modal.className = 'modal-backdrop'; modal.innerHTML = `<div class="spin-modal ${latest || legacyResult ? 'show-result' : ''}"><button class="modal-close" data-action="close-modal" aria-label="关闭转盘">×</button><div class="eyebrow">MOMENT OF LUCK</div><h2>摸鱼大转盘</h2><div class="wheel"><div class="wheel-pointer">▼</div><div class="wheel-core">◌</div></div>${resultCard}${canSpin && e.spin.extra ? `<p class="spin-availability">剩余 ${e.spin.extra} 次</p>` : ''}<button class="primary-btn" data-action="${canSpin ? 'spin' : 'close-modal'}">${canSpin ? latest ? '再转一次' : '开始转动' : latest ? '收下结果' : '关闭'}</button></div>`
   document.body.appendChild(modal)
-  modal.querySelector('[data-action="close-modal"]').addEventListener('click', closeModal)
+  modal.querySelectorAll('[data-action="close-modal"]').forEach(button => button.addEventListener('click', closeModal))
   modal.querySelector('[data-action="spin"]')?.addEventListener('click', spin)
   modal.addEventListener('click', e => { if (e.target === modal) closeModal() })
 }
